@@ -40,17 +40,27 @@ def addRule(noTerminal, sList):
             terminalList[i] = Terminal(i)
 
     # Si la regla logro pasar las verificaciones, se agrega al diccionario
-    # Hay que verificar si el no-terminal ya existe en el diccionario
-    if(noTerminal in rules):
-        # Actualizar regla
-        rules[noTerminal].append(sList)
+    # Hay que verificar si la regla ya existe en el diccionario
+    key = ' '.join(sList)
+    if(key in rules):
         
-    else:
-        rules[noTerminal] = [sList]
+        print("ERROR: La regla ingresada ya existe")
+        return False
+    
+    rules[key] = noTerminal
 
     rulePrint = rulePrepForPrint(sList)
     print("La regla \"" + noTerminal + " -> " + rulePrint + "\" ha sido agregada a la gramática")
     return True
+
+
+# Funcion que busca una regla que coincida con el argumento dado
+def matchRule(rule):
+    key = ' '.join(rule)
+    if(key in rules):
+        return rules[key]
+    else:
+        return None
 
 # Funcion que verifica si un simbolo es el inicial
 def isInit(symbol):
@@ -169,29 +179,133 @@ def build(terminalList):
     return True
 
 # Funcion que realiza el proceso de analisis sintactico 
-def parse(terminal, terminalList):
-    push($)
-    e,result <- trunc(W), <>
-    repetir
-        p <- top()
-        if(p == $ and e == $):
-           return result
-        if(p < e or p = e):
-            push(e)
-            shift(e,w)
-        elif(p > e):
-            while(top() < x)
-                x <- pop()
-            result <- result++ <A -> a)
+def parse(phrase):
+    # Inicializamos la pila
+    stack = []
+
+    # Inicializamos el arreglo que tendra el resultado final
+    ruleStack = []
+    phrase.append("$")
+
+    # Agregamos el $ al inicio de la pila
+    stack.append("$")
+    e = phrase[0]
+    eTerminal = terminalList[e]
+    index = 0
+
+    print("Pila\t\tEntrada\t\tAccion")
+
+    while True:
+        p = stack[-1]
+        t = terminalList[p]
+
+        if(p == "$" and e == "$"):
+
+            # Impresion
+            for s in ruleStack:
+                print(s, end=" ")
+            print("\t\t", end="")
+
+            for s in phrase[index:]:
+                print(s, end=" ")
+            print("\t\t", end="")
+            break
+        
+        # if(p < e or p == e):
+        if(eTerminal in t.morePrec or eTerminal in t.equalPrec):
+
+            for s in ruleStack:
+                print(s, end=" ")
+            print("\t\t", end="")
+
+            for s in phrase[index:]:
+                print(s, end=" ")
+            print("\t\t", end="")
+            print("Leer")
+            
+            stack.append(e)
+            ruleStack.append(e)
+
+            # Debemos seguir leyendo la frase
+            # shift(e,w)
+            index += 1
+            e = phrase[index]
+            eTerminal = terminalList[e]
+
+        # elif(p > e):
+        elif(eTerminal in t.lessPrec):
+
+            rule = []
+            while(ruleStack[-1] != stack[-1]):
+
+                y = ruleStack.pop()
+                rule.insert(0,y)
+                
+            x = stack.pop()
+            xTerminal = terminalList[x]
+
+            while(len(ruleStack) > 0 and ruleStack[-1] != stack[-1]):
+
+                y = ruleStack.pop()
+                rule.insert(0,y)
+             
+            while(stack[-1] in xTerminal.morePrec):
+                x = stack.pop()
+
+                while(ruleStack[-1] != x):
+
+                    y = ruleStack.pop()
+                    rule.insert(0,y)
+
+                y = ruleStack.pop()
+                rule.insert(0,y)
+                xTerminal = terminalList[x]
+                
+            noTerminal = matchRule(rule)
+
+            if(noTerminal is None):
+                for s in ruleStack:
+                    print(s, end=" ")
+                print("\t\t", end="")
+
+                for s in phrase[index:]:
+                    print(s, end=" ")
+                print("\t\t", end="")
+
+                break
+            
+            ruleStack.append(noTerminal)
+
+        # Impresion 
+            for s in ruleStack:
+                print(s, end=" ")
+
+            print("\t\t", end="")
+            for s in phrase[index:]:
+                print(s, end=" ")
+
+            print("\t\t", end="")
+            print("Reducir", end=" ")
+            print(noTerminal, end=" -> ")
+
+            for s in rule:
+                print(s, end=" ")
+            print()
+
         else:
-            error()
-    return True
+            break
+
+    # Verificar si el resultado es el simbolo inicial
+    if(len(ruleStack) == 1 and ruleStack[0] == init):
+        print("Aceptar")
+    else:
+        print("ERROR: No se puede aceptar la frase")
 
 
 def main():
     print("Bienvenido a su Generador de analizadores sintácticos para gramáticas de operadores de preferencia! (Sí es su favorito, no? O.O!)")
-    dolar = Terminal("$")
-    terminalList["$"] = dolar
+    dollar = Terminal("$")
+    terminalList["$"] = dollar
 
     while True:
         command = input() 
@@ -237,7 +351,8 @@ def main():
                     print("ERROR: Aún no se ha determinado un símbolo inicial")
                     continue
 
-                parse()
+                phrase = strCommand[1:]
+                parse(phrase)
 
             case "exit":
                 print("Nos vemos pronto! (Verdad que sí...? O.o??)")
